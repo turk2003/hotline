@@ -2,16 +2,17 @@
 # Builds public/index.html from hotstick-sim.html (the single source file).
 # hotstick-sim.html is written as a page fragment (no <!doctype>/<html>/<body>),
 # so wrap it into a complete standards-mode document for static hosting.
+# Uses Node because it is always present in Vercel's build image.
 set -e
 cd "$(dirname "$0")"
 mkdir -p public
-python3 - <<'PY'
-src = open("hotstick-sim.html", encoding="utf-8").read()
-head, sep, body = src.partition("</style>")
-if not sep:
-    raise SystemExit("hotstick-sim.html: </style> not found")
-html = ('<!doctype html>\n<html lang="th">\n<head>\n' + head + sep +
-        '\n</head>\n<body>\n' + body.lstrip("\n") + '\n</body>\n</html>\n')
-open("public/index.html", "w", encoding="utf-8").write(html)
-print("built public/index.html")
-PY
+node -e '
+const fs = require("fs");
+const src = fs.readFileSync("hotstick-sim.html", "utf8");
+const i = src.indexOf("</style>");
+if (i < 0) { console.error("hotstick-sim.html: </style> not found"); process.exit(1); }
+const head = src.slice(0, i + 8), body = src.slice(i + 8).replace(/^\n+/, "");
+fs.writeFileSync("public/index.html",
+  "<!doctype html>\n<html lang=\"th\">\n<head>\n" + head + "\n</head>\n<body>\n" + body + "\n</body>\n</html>\n");
+console.log("built public/index.html");
+'
