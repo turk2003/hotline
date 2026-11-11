@@ -1,0 +1,1012 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hot Stick Trainer 22 kV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Layout: first-person view from the bucket fills the screen; a job card (left) and a safety meter (right) float over it like gear clipped to the bucket */
+:root{
+  --bg:#0d151c; --panel:rgba(13,21,28,.9); --line:#26384a; --fg:#e6edf2; --muted:#93a5b6;
+  --hivis:#f6c445; --ink:#0d151c; --ok:#43d39a; --warn:#ffa630; --danger:#ff5757;
+  --f-display:'Chakra Petch','IBM Plex Sans Thai',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans Thai',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px}
+#app{position:fixed;inset:0}
+#c{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+button{font:inherit;color:inherit}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;font-size:13px;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,.tool:focus-visible,.chk:focus-within{outline:2px solid var(--hivis);outline-offset:2px}
+.btn.on{background:var(--hivis);color:var(--ink);border-color:var(--hivis)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.topbar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;pointer-events:none}
+.topbar>*{pointer-events:auto}
+.brand{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:flex;gap:10px;align-items:center}
+.brand h1{font-family:var(--f-display);font-size:17px;margin:0;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.kv{font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--ink);background:var(--hivis);padding:2px 6px;border-radius:4px}
+.stats{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;display:flex;gap:16px;align-items:center}
+.stat{display:flex;flex-direction:column}
+.stat span{color:var(--muted);font-size:10px;letter-spacing:.06em}
+.stat b{font-family:var(--f-mono);font-size:15px;font-variant-numeric:tabular-nums}
+.stat b.bad{color:var(--danger)}
+.cams{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+#panel{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:80px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:340px;display:flex;flex-direction:column;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;backdrop-filter:blur(6px)}
+#panelTab{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:80px}
+.phead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.eyebrow{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--hivis);margin:0}
+.panel-title{font-family:var(--f-display);font-size:18px;margin:2px 0 0;text-wrap:balance;line-height:1.25}
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+ol.steps li{display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:center;padding:5px 6px;border-radius:7px;color:var(--muted);font-size:13px}
+ol.steps li .n{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--f-mono);font-size:11px}
+ol.steps li.cur{background:rgba(246,196,69,.1);color:var(--fg)}
+ol.steps li.cur .n{background:var(--hivis);color:var(--ink);border-color:var(--hivis);font-weight:600}
+ol.steps li.done{color:var(--fg)}
+ol.steps li.done .n{background:var(--ok);border-color:var(--ok);color:var(--ink)}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-family:var(--f-display);font-size:15px}
+.card p{margin:0;line-height:1.6;color:#cdd8e2}
+.need{font-size:12px;color:var(--muted)}
+.need b{color:var(--hivis);font-weight:600}
+.phgrid{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 10px;font-size:12px;align-items:center}
+.phgrid .h{color:var(--muted);font-size:11px}
+.phgrid b{font-family:var(--f-mono)}
+.st{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.st.y{color:var(--ok)}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px;border-radius:7px;cursor:pointer;line-height:1.45}
+.chk:hover{background:rgba(255,255,255,.04)}
+.chk input{accent-color:var(--hivis);width:17px;height:17px;margin-top:2px;flex:none}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tool{background:transparent;border:1px solid var(--line);border-radius:9px;padding:9px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tool:hover:not(:disabled){border-color:var(--muted)}
+.tool.on{border-color:var(--hivis);background:rgba(246,196,69,.12)}
+.tool:disabled{opacity:.4;cursor:not-allowed}
+.tool .k{font-family:var(--f-mono);font-size:10px;color:var(--muted)}
+.tool .t{font-size:13px;font-weight:600}
+.tool .s{font-size:11px;color:var(--muted)}
+.tool.free{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}
+.note{font-size:11.5px;line-height:1.55;color:var(--muted);margin:0;border-top:1px solid var(--line);padding-top:10px}
+
+#hud{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:290px;display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;backdrop-filter:blur(6px)}
+.meter-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.meter-head span{font-size:12px;color:var(--muted)}
+.meter-head b{font-family:var(--f-mono);font-size:20px;font-variant-numeric:tabular-nums}
+.bar{position:relative;height:10px;border-radius:5px;background:#1c2a37;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--ok);border-radius:5px;transition:width .08s linear}
+.bar .mad{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg);opacity:.7}
+.legend{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:10px;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:12px}
+.chip{font-family:var(--f-mono);font-size:11px;padding:2px 7px;border-radius:5px;border:1px solid var(--line)}
+.chip.ok{color:var(--ok);border-color:rgba(67,211,154,.5)}
+.chip.warn{color:var(--warn);border-color:rgba(255,166,48,.5)}
+.chip.bad{color:var(--danger);border-color:rgba(255,87,87,.5)}
+#prog{display:none;flex-direction:column;gap:4px}
+#prog .bar i{background:var(--hivis)}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.pad .btn{padding:7px 0;text-align:center;touch-action:none;user-select:none;-webkit-user-select:none}
+#holdBtn{touch-action:none;user-select:none;-webkit-user-select:none}
+.help{font-size:11px;line-height:1.6;color:var(--muted);margin:0}
+kbd{font-family:var(--f-mono);font-size:10px;border:1px solid var(--line);border-radius:3px;padding:0 4px;color:var(--fg)}
+
+#xh{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid rgba(255,255,255,.85);border-radius:50%;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+#xh::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:currentColor;color:rgba(255,255,255,.95)}
+#xh.on{border-color:var(--ok)}
+#xh.far{border-color:var(--danger);border-style:dashed}
+#lockHint{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px;pointer-events:none;white-space:nowrap}
+
+#toast{position:absolute;left:50%;top:84px;transform:translateX(-50%);max-width:min(540px,calc(100% - 32px));background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--hivis);border-radius:9px;padding:10px 14px;font-size:14px;line-height:1.5;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.ok{border-left-color:var(--ok)}
+#toast.bad{border-left-color:var(--danger)}
+#vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 rgba(255,60,60,0);transition:box-shadow .15s}
+#vignette.on{box-shadow:inset 0 0 140px 36px rgba(255,60,60,.55)}
+#flash{position:absolute;inset:0;pointer-events:none;background:#dfe9ff;opacity:0}
+
+#modal{position:absolute;inset:0;background:rgba(5,9,13,.7);display:grid;place-items:center;padding:16px}
+.mbox{background:#13202b;border:1px solid var(--line);border-radius:14px;padding:22px;width:min(460px,100%);display:flex;flex-direction:column;gap:14px}
+.mbox h2{margin:0;font-family:var(--f-display);font-size:22px}
+.mbox p{margin:0;line-height:1.6;color:#cdd8e2}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.grid4 div{border:1px solid var(--line);border-radius:9px;padding:10px}
+.grid4 span{display:block;font-size:11px;color:var(--muted)}
+.grid4 b{font-family:var(--f-mono);font-size:20px}
+
+@media (max-width:820px){
+  .brand h1{font-size:15px}
+  .stats{gap:10px}
+  .cams{margin-left:0}
+  #panel{left:0;right:0;width:auto;top:auto;bottom:0;height:40%;border-radius:12px 12px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  #panelTab{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  #hud{bottom:calc(40% + 8px);width:min(230px,60%);padding:10px;gap:8px}
+  .help,.legend{display:none}
+  .meter-head b{font-size:16px}
+  .meter-head span,.row{font-size:11px}
+  .pad .btn{padding:5px 0;font-size:12px}
+  #toast{top:auto;bottom:calc(40% + 12px);left:12px;transform:none;max-width:calc(100% - 270px);min-width:140px}
+  #lockHint{display:none}
+}
+@media (max-width:520px){ .stat.hide-sm{display:none} }
+@media (prefers-reduced-motion:reduce){ #toast,.bar i,#vignette{transition:none} }
+</style>
+
+<div id="app">
+  <canvas id="c" aria-label="มุมมองบุคคลที่ 1 จากกระเช้า งานเชื่อมสายหม้อแปลงแบบ Hot Stick"></canvas>
+  <div id="xh"></div>
+  <div id="lockHint" hidden>คลิกที่ฉากเพื่อใช้เมาส์หันมอง · กด <kbd>Esc</kbd> เพื่อปล่อยเมาส์</div>
+  <div id="vignette"></div>
+  <div id="flash"></div>
+
+  <header class="topbar">
+    <div class="brand"><h1>Hot Stick Trainer</h1><span class="kv">22 kV</span></div>
+    <div class="stats">
+      <div class="stat"><span>เวลา</span><b id="tTime">00:00</b></div>
+      <div class="stat"><span>ฝ่าระยะปลอดภัย</span><b id="tViol">0</b></div>
+      <div class="stat hide-sm"><span>ผิดพลาด</span><b id="tMis">0</b></div>
+    </div>
+    <div class="cams">
+      <button class="btn on" id="viewBtn" title="สลับมุมมอง (V)">มุมมอง: บุคคลที่ 1</button>
+      <button class="btn" id="soundBtn" aria-pressed="true">เสียง: เปิด</button>
+    </div>
+  </header>
+
+  <button class="btn" id="panelTab" hidden>แสดงใบสั่งงาน (H)</button>
+  <aside id="panel">
+    <div class="phead">
+      <div>
+        <p class="eyebrow">ใบสั่งงาน · Live-line</p>
+        <h2 class="panel-title">เชื่อมสายหม้อแปลง 3 เฟส เข้าระบบ 22 kV ด้วยวิธี Hot Stick</h2>
+      </div>
+      <button class="btn" id="panelHide" title="ซ่อนแผง (H)">ซ่อน</button>
+    </div>
+    <ol class="steps" id="steps"></ol>
+    <div class="card" id="instr"></div>
+    <div class="card" id="prep">
+      <h3>ตรวจสอบก่อนเริ่มงาน</h3>
+      <div id="chkList"></div>
+      <button class="btn on" id="startBtn" disabled>เริ่มปฏิบัติงาน</button>
+    </div>
+    <div>
+      <p class="eyebrow" style="margin-bottom:8px">เครื่องมือ</p>
+      <div class="tools" id="tools"></div>
+    </div>
+    <p class="note">ใช้ฝึกลำดับขั้นตอนและการรักษาระยะเท่านั้น ระยะปลอดภัย 0.65 m ในโปรแกรมเป็นค่าสมมติ และขั้นตอนถูกย่อให้ง่ายขึ้น ให้ยึดมาตรฐานและการฝึกอบรมของ กฟภ. ในการทำงานจริง</p>
+  </aside>
+
+  <div id="hud">
+    <div class="meter-head"><span>ระยะใกล้สุดถึงส่วนมีไฟ</span><b id="dist">—</b></div>
+    <div class="bar"><i id="distFill" style="width:100%"></i><div class="mad" style="left:32.5%"></div></div>
+    <div class="legend"><span>0</span><span>MAD 0.65</span><span>2.0 m</span></div>
+    <div class="row"><span>ระยะเอื้อมไม้</span><span class="chip" id="reach">ไม่ได้ถือ</span></div>
+    <div class="row" id="carryRow" hidden><span>กำลังถือสายหม้อแปลง</span><span class="chip warn" id="carryChip">เฟส A</span></div>
+    <div id="prog"><div class="row"><span id="progLabel">กำลังทำงาน</span><span class="chip" id="progPct">0%</span></div><div class="bar"><i id="progFill" style="width:0%"></i></div></div>
+    <div class="pad" aria-label="ขยับกระเช้า">
+      <button class="btn" data-mv="left" aria-label="เลื่อนซ้าย">◀</button>
+      <button class="btn" data-mv="fwd" aria-label="เลื่อนไปข้างหน้า">▲</button>
+      <button class="btn" data-mv="back" aria-label="ถอยหลัง">▼</button>
+      <button class="btn" data-mv="right" aria-label="เลื่อนขวา">▶</button>
+      <button class="btn" data-mv="up" style="grid-column:span 2">ยกขึ้น</button>
+      <button class="btn" data-mv="down" style="grid-column:span 2">ลดลง</button>
+    </div>
+    <button class="btn on" id="holdBtn">กดค้างเพื่อทำงาน</button>
+    <p class="help">เมาส์ = หันมองและเล็งไม้ · คลิก/กดค้าง = ทำงาน<br>
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> เลื่อนกระเช้า · <kbd>E</kbd>/<kbd>Q</kbd> ขึ้น/ลง<br>
+      <kbd>1</kbd>–<kbd>4</kbd> เลือกไม้ · <kbd>0</kbd> วางไม้ · <kbd>X</kbd> ปล่อยสาย · <kbd>V</kbd> มุมมอง · <kbd>H</kbd> ซ่อนแผง</p>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="modal" hidden><div class="mbox" id="mbox"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const UP = V(0, 1, 0);
+
+/* ---------- world (metres) ---------- */
+// Two-pole transformer platform: 12.20 m poles at z = ±1.0, line along z, cutout arm on the front pole
+const MAD = 0.65, FATAL = 0.25, Z_BAIL = 1.9, SAG = 0.35, ZA = 1.3, POLES_Z = [-1.0, 1.0];
+function sagAt(z) { const zz = Math.max(-40, Math.min(40, z)); const s0 = zz < 0 ? -40 : 0; const u = (zz - (s0 + 20)) / 20; return SAG * (1 - u * u); }
+const PH = ['A', 'B', 'C'];
+const PX = { A: 1.1, B: 0, C: -1.1 }, PY0 = { A: 10.42, B: 10.42, C: 10.42 }, CX = { A: 0.95, B: 0, C: -0.95 };
+const lineY = (p, z) => PY0[p] - sagAt(z);
+const BAIL_TOP = {}, BAIL_BOT = {}, CUT_TOP = {}, HINGE = {}, PARK = {}, BUSH = {};
+PH.forEach((p, i) => {
+  BAIL_TOP[p] = V(PX[p], lineY(p, Z_BAIL), Z_BAIL);
+  BAIL_BOT[p] = BAIL_TOP[p].clone().add(V(0, -0.12, 0));
+  CUT_TOP[p] = V(CX[p], 9.17, ZA + 0.23);
+  HINGE[p] = V(CX[p], 8.68, ZA + 0.25);
+  PARK[p] = V(CX[p] + 0.26, 8.98, ZA + 0.52);
+  BUSH[p] = V((1 - i) * 0.3, 6.36, 0.3);
+});
+// HV leads from each cutout down to its bushing, routed clear of the front pole
+const LEAD = {}, LEAD_X = { A: 0.6, B: 0.3, C: -0.6 };
+PH.forEach(p => { LEAD[p] = [HINGE[p], V(LEAD_X[p], 7.6, ZA + 0.25), V(LEAD_X[p], 6.6, 0.42), BUSH[p]]; });
+const OPEN_ANG = 2.45, CLOSED_ANG = 0.1;
+
+const TOOLS = {
+  detector: { key: '1', name: 'ไม้ตรวจแรงดัน', sub: 'Voltage detector', L: 2.4 },
+  bail:     { key: '2', name: 'Shotgun + Bail Clamp', sub: 'ติดตั้งบนสายเมน', L: 3.0 },
+  shotgun:  { key: '3', name: 'Shotgun Stick', sub: 'จับ Hot Line Clamp', L: 3.0 },
+  switch:   { key: '4', name: 'ไม้ชักฟิวส์', sub: 'Switch stick', L: 3.0 },
+};
+const STEPS = [
+  { id: 'prep', title: 'เตรียมงานและความปลอดภัย',
+    text: 'ตรวจรายการด้านล่างให้ครบทุกข้อ สิ่งสำคัญคือคัตเอาท์ทั้ง 3 เฟสต้องเปิดอยู่ (ฟิวส์ห้อยลง) เพื่อให้หม้อแปลงไม่มีโหลดขณะเชื่อมสาย' },
+  { id: 'detect', title: 'ตรวจสอบแรงดันสายเมน', tool: 'detector',
+    text: 'เลือกไม้ตรวจแรงดัน (1) หันเป้ากลางจอไปที่สายเมนเส้นใดก็ได้ แล้วกดค้างจนเครื่องส่งเสียงเตือน เพื่อยืนยันว่าสายมีไฟ' },
+  { id: 'connect', title: 'ติดตั้ง Bail Clamp และเชื่อมสายหม้อแปลง',
+    text: 'ทำทีละเฟส: (ก) ใช้ Shotgun + Bail Clamp (2) กดค้างที่จุดบนสายเมนเพื่อติดตั้ง Bail Clamp (ข) ใช้ Shotgun Stick (3) คลิกเกี่ยว Hot Line Clamp ที่ปลายสายหม้อแปลง ยกไปที่ห่วง Bail Clamp ของเฟสเดียวกัน แล้วกดค้างเพื่อขันแน่น ห้ามแคลมป์ลงสายเมนโดยตรง' },
+  { id: 'close', title: 'สับคัตเอาท์จ่ายไฟเข้าหม้อแปลง', tool: 'switch',
+    text: 'เลือกไม้ชักฟิวส์ (4) เล็งที่ห่วงปลายกระบอกฟิวส์ของคัตเอาท์แต่ละเฟส แล้วกดค้างเพื่อดันฟิวส์ขึ้นจนล็อก จะมีประกายไฟเล็กน้อยและหม้อแปลงเริ่มมีเสียงฮัม' },
+  { id: 'clear', title: 'ถอยกระเช้าออกจากจุดทำงาน',
+    text: 'วางไม้ (0) แล้วลดกระเช้าลง (Q) จนพื้นกระเช้าต่ำกว่า 6.6 m โดยไม่เข้าใกล้หม้อแปลงที่มีไฟแล้ว' },
+];
+const CHECKS = [
+  'สวมหมวกนิรภัย แว่นตานิรภัย และชุดทำงานกันไฟ (FR) พร้อมถุงมือยางแรงสูง',
+  'ตรวจสภาพและเช็ดทำความสะอาดไม้ฉนวนทุกอันก่อนใช้',
+  'แจ้งศูนย์ควบคุมให้ Block Reclose วงจรที่จะปฏิบัติงาน',
+  'ตรวจว่าคัตเอาท์ทั้ง 3 เฟสเปิดอยู่ และปลดโหลดด้านแรงต่ำของหม้อแปลงแล้ว',
+  'ตั้งกรวยกั้นพื้นที่ และต่อสายดินรถกระเช้า',
+];
+
+/* ---------- state ---------- */
+const S = {
+  step: 0, tool: null, mistakes: 0, faults: 0, violations: 0, startT: null, endT: null,
+  pointerDown: false, keyHold: false, btnHold: false, progress: 0, progKey: '', arced: false,
+  bail: { A: false, B: false, C: false }, conn: { A: false, B: false, C: false }, closed: { A: false, B: false, C: false },
+  fuseAng: { A: OPEN_ANG, B: OPEN_ANG, C: OPEN_ANG }, carrying: null,
+  inViol: false, done: false, failed: false, sound: true, view: 'fp', wrongSeen: {},
+  locked: false, noLock: false, dragLook: false, yaw: 0, pitch: 0, lastR: 2.4,
+};
+
+/* ---------- renderer / scene ---------- */
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa9c2d6);
+scene.fog = new THREE.Fog(0xa9c2d6, 45, 150);
+const camera = new THREE.PerspectiveCamera(70, 1, 0.03, 400);
+camera.rotation.order = 'YXZ';
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enabled = false; controls.enableDamping = true; controls.dampingFactor = 0.12;
+controls.minDistance = 1.5; controls.maxDistance = 50; controls.maxPolarAngle = Math.PI * 0.495;
+
+scene.add(new THREE.HemisphereLight(0xe4f0ff, 0x4d5a3a, 0.8));
+const sun = new THREE.DirectionalLight(0xfff1dc, 1.05);
+sun.position.set(18, 30, 14); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 14, bottom: -10, near: 1, far: 80 });
+scene.add(sun);
+
+const M = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75, metalness: 0 }, o));
+const mat = {
+  concrete: M(0x9b988f, { roughness: 0.95 }), steel: M(0x6b737c, { metalness: 0.6, roughness: 0.45 }),
+  porc: M(new THREE.Color(0x7a3a1a).convertSRGBToLinear(), { roughness: 0.22, metalness: 0.05 }), // brown-glazed porcelain cond: M(0xb9c1c9, { metalness: 0.85, roughness: 0.35 }),
+  jumper: M(0xc9ced4, { metalness: 0.8, roughness: 0.35 }),
+  neutral: M(0x5c636b, { metalness: 0.6, roughness: 0.5 }), fiber: M(0xf0b20a, { roughness: 0.45 }),
+  fiberDark: M(0xc98b00, { roughness: 0.5 }), metal: M(0xaeb6be, { metalness: 0.9, roughness: 0.3 }),
+  bronze: M(0xa8773a, { metalness: 0.7, roughness: 0.35 }), bucket: M(0xf1eee4, { roughness: 0.6 }),
+  rim: M(0x1d1f22), shirt: M(0x2b4f7d), skin: M(0xc6976f), helmet: M(0xf6f6f2, { roughness: 0.35 }),
+  glove: M(0x151515), truck: M(0xf4f4f0, { roughness: 0.5 }), truckAcc: M(0xe0731c), tire: M(0x1b1b1b),
+  grass: M(0x617d45, { roughness: 1 }), road: M(0x3b3f44, { roughness: 1 }), tree: M(0x35552e), trunk: M(0x5a4330),
+  tank: M(0x8e979e, { metalness: 0.4, roughness: 0.55 }), fuse: M(0x6b3a22, { roughness: 0.5 }),
+  orange: M(new THREE.Color(0xf05a14).convertSRGBToLinear(), { roughness: 0.38 }),
+  black: M(new THREE.Color(0x141618).convertSRGBToLinear(), { roughness: 0.45 }),
+  film: new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, roughness: 0.2 }),
+};
+function cyl(rt, rb, h, m, seg = 12) { const o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m); o.castShadow = true; return o; }
+function box(w, h, d, m) { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.castShadow = true; o.receiveShadow = true; return o; }
+const unitCyl = r => cyl(r, r, 1, null, 10);
+function placeBetween(mesh, a, b) {
+  const d = b.clone().sub(a), len = d.length();
+  mesh.position.copy(a).addScaledVector(d, 0.5);
+  mesh.scale.set(1, Math.max(len, 0.001), 1);
+  if (len > 1e-6) mesh.quaternion.setFromUnitVectors(UP, d.normalize());
+}
+function rod(a, b, r, m) { const o = unitCyl(r); o.material = m; placeBetween(o, a, b); return o; }
+function label(text, scale = 0.5, color = '#0d151c', bg = 'rgba(246,196,69,0.95)') {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96;
+  const c = cv.getContext('2d');
+  c.font = '600 46px "IBM Plex Sans Thai", system-ui, sans-serif';
+  const w = Math.min(500, c.measureText(text).width + 40);
+  c.fillStyle = bg; const x = (512 - w) / 2;
+  c.beginPath(); if (c.roundRect) c.roundRect(x, 14, w, 68, 14); else c.rect(x, 14, w, 68); c.fill();
+  c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 256, 50);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+  sp.scale.set(scale * 5.33, scale, 1); sp.renderOrder = 10; return sp;
+}
+
+/* ---------- environment ---------- */
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat.grass);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(6, 400), mat.road);
+road.rotation.x = -Math.PI / 2; road.position.set(7.6, 0.01, 0); road.receiveShadow = true; scene.add(road);
+const rng = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+for (let i = 0; i < 46; i++) {
+  const x = (rng() < 0.5 ? -1 : 1) * (14 + rng() * 50), z = -70 + rng() * 140;
+  if (x > 3 && x < 13) continue;
+  const h = 3 + rng() * 4, t = cyl(0.15, 0.2, h * 0.4, mat.trunk); t.position.set(x, h * 0.2, z); scene.add(t);
+  const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(h * 0.35, 0), mat.tree); crown.position.set(x, h * 0.55, z); crown.castShadow = true; scene.add(crown);
+}
+function insulator() {
+  const g = new THREE.Group();
+  const pin = cyl(0.012, 0.012, 0.12, mat.steel); pin.position.y = 0.06; g.add(pin);
+  const body = cyl(0.045, 0.06, 0.25, mat.porc, 16); body.position.y = 0.245; g.add(body);
+  [0.17, 0.27].forEach((y, i) => { const sk = cyl(0.075 - i * 0.012, 0.092 - i * 0.012, 0.03, mat.porc, 20); sk.position.y = y; g.add(sk); });
+  const top = cyl(0.03, 0.042, 0.03, mat.porc, 16); top.position.y = 0.355; g.add(top);
+  return g;
+}
+function buildPole(z, main) {
+  const g = new THREE.Group(); g.position.set(0, 0, z);
+  // crossarm bolted to the pole face near the top; all three phases sit level on it
+  const zo = z < 0 && z > -10 ? -0.15 : 0.15;
+  const p = cyl(0.11, 0.19, 10.15, mat.concrete, 16); p.position.y = 5.075; p.receiveShadow = true; g.add(p);
+  const arm = box(2.6, 0.1, 0.1, mat.steel); arm.position.set(0, 10.0, zo); g.add(arm);
+  g.add(rod(V(0, 9.95, 0), V(0, 9.95, zo), 0.04, mat.steel));
+  g.add(rod(V(-0.1, 9.45, zo * 0.7), V(-0.75, 9.96, zo), 0.02, mat.steel));
+  g.add(rod(V(0.1, 9.45, zo * 0.7), V(0.75, 9.96, zo), 0.02, mat.steel));
+  [-1.1, 0, 1.1].forEach(ix => { const ins = insulator(); ins.position.set(ix, 10.05, zo); g.add(ins); });
+  const rack = box(0.1, 0.14, 0.08, mat.steel); rack.position.set(0.17, 8.0, 0); g.add(rack);
+  scene.add(g);
+}
+[-40, ...POLES_Z, 40].forEach(z => buildPole(z));
+function lineTube(x, y0, neutral) {
+  const pts = [];
+  for (let z = -60; z <= 60; z += 2) pts.push(V(x, y0 - sagAt(z) * (neutral ? 0.8 : 1), z));
+  const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, neutral ? 0.011 : 0.014, 6), neutral ? mat.neutral : mat.cond);
+  t.castShadow = true; scene.add(t);
+}
+PH.forEach(p => lineTube(PX[p], PY0[p]));
+lineTube(0.24, 8.0, true);
+PH.forEach(p => { const l = label('เฟส ' + p, 0.3); l.position.set(PX[p], PY0[p] + 0.26, -2.6); scene.add(l); });
+
+/* cutout arm, cutouts, transformer */
+const arm2 = box(2.4, 0.1, 0.1, mat.steel); arm2.position.set(0, 8.62, ZA); scene.add(arm2);
+scene.add(rod(V(0, 8.62, POLES_Z[1] + 0.12), V(0, 8.62, ZA), 0.04, mat.steel));
+scene.add(rod(V(0, 8.1, POLES_Z[1] + 0.12), V(0.9, 8.6, ZA), 0.018, mat.steel));
+scene.add(rod(V(0, 8.1, POLES_Z[1] + 0.12), V(-0.9, 8.6, ZA), 0.018, mat.steel));
+const fuseGroups = {};
+PH.forEach(p => {
+  const x = CX[p];
+  const body = cyl(0.038, 0.045, 0.42, mat.porc, 14); body.position.set(x, 8.9, ZA + 0.12); scene.add(body);
+  [8.8, 8.9, 9.0].forEach(y => { const sk = cyl(0.07, 0.07, 0.025, mat.porc, 16); sk.position.set(x, y, ZA + 0.12); scene.add(sk); });
+  scene.add(rod(V(x, 8.64, ZA + 0.05), V(x, 8.7, ZA + 0.12), 0.015, mat.steel));
+  const topC = box(0.05, 0.04, 0.14, mat.metal); topC.position.set(x, 9.14, ZA + 0.2); scene.add(topC);
+  // surge arrester beside each cutout
+  const la = cyl(0.032, 0.036, 0.26, M(0x55595e, { roughness: 0.6 }), 12); la.position.set(x - 0.27, 8.82, ZA + 0.08); scene.add(la);
+  [8.76, 8.84, 8.92].forEach(y => { const sk = cyl(0.05, 0.05, 0.018, M(0x55595e), 12); sk.position.set(x - 0.27, y, ZA + 0.08); scene.add(sk); });
+  const hinge = box(0.06, 0.04, 0.08, mat.metal); hinge.position.copy(HINGE[p]); scene.add(hinge);
+  const fg = new THREE.Group(); fg.position.copy(HINGE[p]); scene.add(fg);
+  const tube = cyl(0.022, 0.022, 0.44, mat.fuse, 12); tube.position.y = 0.22; fg.add(tube);
+  const cap = cyl(0.026, 0.026, 0.04, mat.metal); cap.position.y = 0.43; fg.add(cap);
+  const ringM = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 6, 16), mat.metal); ringM.position.set(0, 0.46, 0.035); ringM.rotation.y = Math.PI / 2; ringM.castShadow = true; fg.add(ringM);
+  fg.rotation.x = OPEN_ANG; fuseGroups[p] = fg;
+  for (let k = 0; k < LEAD[p].length - 1; k++) scene.add(rod(LEAD[p][k], LEAD[p][k + 1], 0.008, mat.jumper));
+});
+// platform: two steel channels between the poles, cross beams, then the 500 kVA tank sitting on top
+[-0.45, 0.45].forEach(x => { const ch = box(0.1, 0.16, 2.3, mat.steel); ch.position.set(x, 4.72, 0); scene.add(ch); });
+POLES_Z.forEach(z => { const cb = box(1.3, 0.1, 0.1, mat.steel); cb.position.set(0, 4.6, z); scene.add(cb);
+  scene.add(rod(V(-0.6, 4.6, z), V(0, 3.9, z), 0.02, mat.steel)); scene.add(rod(V(0.6, 4.6, z), V(0, 3.9, z), 0.02, mat.steel)); });
+const tank = box(0.95, 1.2, 1.05, mat.tank); tank.position.set(0, 5.4, 0); scene.add(tank);
+const lid = box(1.0, 0.06, 1.12, mat.tank); lid.position.set(0, 6.03, 0); scene.add(lid);
+const base = box(1.0, 0.08, 1.12, mat.steel); base.position.set(0, 4.84, 0); scene.add(base);
+[-1, 1].forEach(s => { for (let i = 0; i < 7; i++) { const fin = box(0.22, 0.95, 0.025, mat.tank); fin.position.set(s * 0.58, 5.38, -0.42 + i * 0.14); scene.add(fin); } });
+const cons = cyl(0.13, 0.13, 0.5, mat.tank, 16); cons.rotation.x = Math.PI / 2; cons.position.set(-0.32, 6.32, -0.3); scene.add(cons);
+PH.forEach(p => {
+  const b = cyl(0.03, 0.045, 0.3, mat.porc, 10); b.position.copy(BUSH[p]).add(V(0, -0.17, 0)); scene.add(b);
+  [0.08, 0.16, 0.24].forEach(y => { const sk = cyl(0.055, 0.055, 0.015, mat.porc, 12); sk.position.copy(BUSH[p]).add(V(0, -0.33 + y, 0)); scene.add(sk); });
+});
+for (let i = 0; i < 4; i++) { const lv = cyl(0.025, 0.03, 0.14, mat.black, 10); lv.position.set(-0.36 + i * 0.24, 6.13, -0.38); scene.add(lv); }
+const tLbl = label('หม้อแปลง 500 kVA', 0.26, '#e6edf2', 'rgba(13,21,28,0.85)'); tLbl.position.set(1.15, 5.6, 0.9); scene.add(tLbl);
+const cLbl = label('คัตเอาท์', 0.24, '#e6edf2', 'rgba(13,21,28,0.85)'); cLbl.position.set(-1.8, 8.75, ZA + 0.1); scene.add(cLbl);
+
+/* ---------- hardware ---------- */
+function makeBail() {
+  const g = new THREE.Group();
+  g.add(box(0.05, 0.05, 0.09, mat.bronze));
+  const eye = cyl(0.008, 0.008, 0.07, mat.metal); eye.position.y = 0.05; g.add(eye);
+  const loop = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.007, 8, 20, Math.PI), mat.bronze);
+  loop.rotation.z = Math.PI; loop.position.y = -0.07; loop.castShadow = true; g.add(loop);
+  [-0.05, 0.05].forEach(x => g.add(rod(V(x, -0.02, 0), V(x, -0.07, 0), 0.007, mat.bronze)));
+  return g;
+}
+function makeClamp() {
+  const g = new THREE.Group();
+  const body = box(0.045, 0.1, 0.045, mat.bronze); body.position.y = -0.05; g.add(body);
+  const jaw = box(0.06, 0.02, 0.05, mat.bronze); g.add(jaw);
+  const eye = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.006, 6, 14), mat.metal); eye.position.y = -0.11; g.add(eye);
+  return g;
+}
+// Sticks are built along +y from the butt (0) to the working tip (L).
+// The shotgun stick follows the reference photo: orange fiberglass, black butt cap,
+// black band + trigger housing near the butt, a parallel operating lever mid-stick,
+// and a black head with a side J-hook at the top.
+function makeStick(kind, L) {
+  const g = new THREE.Group(); const H = 0.22, I = L - H, isShot = kind === 'bail' || kind === 'shotgun';
+  const seg = (a, b, r, m, s = 14) => { const o = cyl(r, r, b - a, m, s); o.position.y = (a + b) / 2; g.add(o); return o; };
+  const f = t => t * I;
+  seg(0, 0.07, 0.024, mat.black);                    // butt cap
+  const cap = cyl(0.026, 0.026, 0.02, mat.black, 10); cap.position.y = 0.075; g.add(cap);
+  seg(0.07, I, 0.0165, mat.orange, 16);              // fiberglass pole
+  seg(f(0.45), f(0.8), 0.0175, mat.film, 16);        // clear protective wrap
+  if (isShot) {
+    seg(f(0.1), f(0.13), 0.0185, mat.black);         // black band
+    seg(f(0.13), f(0.17), 0.016, mat.orange);
+    const hs = box(0.085, f(0.1), 0.062, mat.black); hs.position.set(0.016, f(0.215), 0); g.add(hs);     // trigger housing
+    const plate = box(0.004, f(0.08), 0.034, mat.metal); plate.position.set(-0.024, f(0.215), 0); g.add(plate);
+    const latch = box(0.006, 0.07, 0.012, mat.metal); latch.position.set(-0.028, f(0.2), 0.02); latch.rotation.z = 0.25; g.add(latch);
+    const ear = box(0.02, 0.025, 0.06, mat.black); ear.position.set(0.03, f(0.27), 0); g.add(ear);
+    seg(f(0.17), f(0.3), 0.02, mat.black);           // black sleeve above the housing
+    const tag = box(0.002, 0.08, 0.02, mat.metal); tag.position.set(-0.021, f(0.29), 0); g.add(tag);
+    // operating lever on two clips, pivoting at its lower clip
+    [0.395, 0.47].forEach(t => { const cl = box(0.045, 0.018, 0.03, mat.black); cl.position.set(0.02, f(t), 0); g.add(cl); });
+    const lev = new THREE.Group(); lev.position.set(0.04, f(0.37), 0); g.add(lev);
+    const bar = cyl(0.011, 0.011, f(0.17), mat.black, 10); bar.position.y = f(0.085); lev.add(bar);
+    const grip = cyl(0.013, 0.012, 0.13, mat.black, 10); grip.position.set(-0.012, f(0.17) + 0.06, 0); grip.rotation.z = 0.18; lev.add(grip);
+    const cam = box(0.028, 0.07, 0.03, mat.black); cam.position.set(0.024, f(0.43), 0); g.add(cam);
+    g.userData.lever = lev;
+  }
+  const head = new THREE.Group(); head.position.y = I; g.add(head);
+  if (kind === 'detector') {
+    head.add(rod(V(0, 0, 0), V(0, 0.05, 0), 0.021, mat.black));
+    const b = cyl(0.035, 0.03, 0.12, mat.black); b.position.y = 0.11; head.add(b);
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), M(0x550000)); led.position.y = 0.18; head.add(led);
+    head.add(rod(V(0, 0.18, 0), V(0, H, 0), 0.005, mat.metal)); g.userData.led = led;
+  } else if (isShot) {
+    const hb = cyl(0.032, 0.03, 0.19, mat.black, 14); hb.position.y = 0.1; head.add(hb);
+    const flat = box(0.026, 0.15, 0.064, mat.black); flat.position.set(0.03, 0.11, 0); head.add(flat);
+    const top = cyl(0.035, 0.035, 0.03, mat.black, 10); top.position.y = 0.205; head.add(top);
+    const base = box(0.075, 0.025, 0.06, mat.black); base.position.set(-0.005, 0.02, 0); head.add(base);
+    // J-hook beside the head
+    head.add(rod(V(-0.035, 0.035, 0), V(-0.035, 0.0, 0), 0.0045, mat.black));
+    const hk = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.0045, 6, 12, Math.PI), mat.black);
+    hk.rotation.z = Math.PI; hk.position.set(-0.049, 0.0, 0); head.add(hk);
+    head.add(rod(V(-0.063, 0.0, 0), V(-0.063, 0.018, 0), 0.0045, mat.black));
+    if (kind === 'bail') { const pl = makeBail(); pl.position.y = H; head.add(pl); g.userData.payload = pl; }
+  } else {
+    head.add(rod(V(0, 0, 0), V(0, 0.12, 0), 0.02, mat.black));
+    head.add(rod(V(0, 0.12, 0), V(0, 0.18, 0), 0.008, mat.metal));
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.005, 6, 12, Math.PI * 1.4), mat.metal);
+    hook.position.y = 0.2; head.add(hook);
+  }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+const bailMeshes = {};
+const clampMeshes = {}; PH.forEach(p => { clampMeshes[p] = makeClamp(); scene.add(clampMeshes[p]); });
+
+/* jumpers (transformer leads) */
+const jumper = {}; PH.forEach(p => { jumper[p] = { mesh: null, pts: [], last: V(999, 0, 0) }; });
+function clampPos(p) { return S.carrying === p ? tip.clone() : S.conn[p] ? BAIL_BOT[p].clone() : PARK[p].clone(); }
+function rebuildJumper(p) {
+  const j = jumper[p], cp = clampPos(p);
+  clampMeshes[p].position.copy(cp);
+  if (cp.distanceTo(j.last) < 0.002) return;
+  j.last.copy(cp);
+  const end = cp.clone().add(V(0, -0.11, 0)), a = CUT_TOP[p];
+  const ctrl = a.clone().lerp(end, 0.5).add(V(0, S.conn[p] ? 0.18 : 0.22, 0.05));
+  const curve = new THREE.QuadraticBezierCurve3(a, ctrl, end);
+  j.pts = curve.getPoints(14);
+  if (j.mesh) { j.mesh.geometry.dispose(); scene.remove(j.mesh); }
+  j.mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.011, 6), mat.jumper); j.mesh.castShadow = true; scene.add(j.mesh);
+}
+
+/* ---------- bucket truck + lineman ---------- */
+const bucketPos = V(2.5, 7.85, 2.8);
+const TURRET = V(7.6, 2.45, 4.6);
+(() => {
+  const t = new THREE.Group(); t.position.set(7.6, 0, 3.4);
+  const bed = box(2.3, 1.1, 5.2, mat.truck); bed.position.set(0, 1.25, 0.6); t.add(bed);
+  const cab = box(2.3, 1.7, 1.7, mat.truck); cab.position.set(0, 1.55, -2.8); t.add(cab);
+  const glass = box(2.0, 0.6, 0.05, M(0x22313d, { roughness: 0.2, metalness: 0.3 })); glass.position.set(0, 1.95, -3.66); t.add(glass);
+  const stripe = box(2.32, 0.14, 6.9, mat.truckAcc); stripe.position.set(0, 0.95, -0.2); t.add(stripe);
+  [[-1.1, -2.7], [1.1, -2.7], [-1.1, 1.2], [1.1, 1.2], [-1.1, 2.4], [1.1, 2.4]].forEach(([x, z]) => { const w = cyl(0.42, 0.42, 0.3, mat.tire, 16); w.rotation.z = Math.PI / 2; w.position.set(x, 0.42, z); t.add(w); });
+  scene.add(t);
+  const tur = cyl(0.35, 0.4, 0.4, mat.truckAcc, 16); tur.position.copy(TURRET).add(V(0, -0.2, 0)); scene.add(tur);
+  [[6.2, 0.5], [9.0, 0.5], [6.2, 6.8], [9.0, 6.8]].forEach(([x, z]) => { const cone = cyl(0.02, 0.17, 0.5, mat.truckAcc, 12); cone.position.set(x, 0.25, z); scene.add(cone); });
+})();
+const boomLow = unitCyl(0.13); boomLow.material = M(0xe6e2d6); scene.add(boomLow);
+const boomUp = unitCyl(0.1); boomUp.material = M(0xf7f7f2, { roughness: 0.4 }); scene.add(boomUp);
+const boomBand = unitCyl(0.105); boomBand.material = mat.truckAcc; scene.add(boomBand);
+const bucket = new THREE.Group(); scene.add(bucket);
+(() => {
+  // open-top bucket built from walls so the first-person view looks down into it
+  const t = 0.04, w = 0.75, h = 1.05;
+  const floor = box(w, t, w, mat.bucket); floor.position.y = t / 2; bucket.add(floor);
+  [[0, w / 2], [0, -w / 2]].forEach(([x, z]) => { const wall = box(w, h, t, mat.bucket); wall.position.set(x, h / 2, z); bucket.add(wall); });
+  [[w / 2, 0], [-w / 2, 0]].forEach(([x, z]) => { const wall = box(t, h, w, mat.bucket); wall.position.set(x, h / 2, z); bucket.add(wall); });
+  const rimF = box(w + 0.06, 0.05, 0.06, mat.rim); rimF.position.set(0, h, w / 2); bucket.add(rimF);
+  const rimB = rimF.clone(); rimB.position.z = -w / 2; bucket.add(rimB);
+  const rimL = box(0.06, 0.05, w + 0.06, mat.rim); rimL.position.set(w / 2, h, 0); bucket.add(rimL);
+  const rimR = rimL.clone(); rimR.position.x = -w / 2; bucket.add(rimR);
+  const lift = box(0.2, 0.25, 0.5, mat.steel); lift.position.set(0.47, 0.25, 0); bucket.add(lift);
+})();
+const man = new THREE.Group(); scene.add(man);
+(() => {
+  const torso = cyl(0.17, 0.15, 0.75, mat.shirt, 14); torso.position.y = 1.0; man.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.105, 16, 12), mat.skin); head.position.y = 1.55; man.add(head);
+  const hel = new THREE.Mesh(new THREE.SphereGeometry(0.125, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat.helmet); hel.position.y = 1.58; man.add(hel);
+  const brim = cyl(0.15, 0.15, 0.015, mat.helmet, 18); brim.position.set(0, 1.58, -0.03); man.add(brim);
+  man.traverse(o => { if (o.isMesh) o.castShadow = true; });
+})();
+const armL = unitCyl(0.045); armL.material = mat.shirt; scene.add(armL);
+const armR = unitCyl(0.045); armR.material = mat.shirt; scene.add(armR);
+const gloveL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), mat.glove); scene.add(gloveL);
+const gloveR = gloveL.clone(); scene.add(gloveR);
+const sticks = {}; Object.keys(TOOLS).forEach(k => { sticks[k] = makeStick(k, TOOLS[k].L); sticks[k].visible = false; scene.add(sticks[k]); });
+
+/* target marker */
+const marker = new THREE.Group(); scene.add(marker);
+const markers = [];
+for (let i = 0; i < 3; i++) {
+  const r = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.007, 8, 32), new THREE.MeshBasicMaterial({ color: 0xf6c445, transparent: true, opacity: 0.9, depthTest: false }));
+  r.renderOrder = 5; marker.add(r); markers.push(r);
+}
+const tipDot = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), new THREE.MeshBasicMaterial({ color: 0x7fe3ff, depthTest: false, transparent: true, opacity: 0.9 }));
+tipDot.renderOrder = 6; scene.add(tipDot);
+
+/* sparks */
+const N = 70;
+const sparkGeo = new THREE.BufferGeometry();
+sparkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+const sparkMat = new THREE.PointsMaterial({ color: 0xcfe6ff, size: 0.04, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+scene.add(new THREE.Points(sparkGeo, sparkMat));
+const sparkVel = new Float32Array(N * 3); let sparkLife = 0;
+const arcLight = new THREE.PointLight(0xbfd9ff, 0, 8); scene.add(arcLight);
+function arcFlash(pos, strength = 1) {
+  const p = sparkGeo.attributes.position.array;
+  for (let i = 0; i < N; i++) {
+    p.set([pos.x, pos.y, pos.z], i * 3);
+    const v = V(rng() - 0.5, rng() * 0.8 - 0.2, rng() - 0.5).normalize().multiplyScalar((0.5 + rng() * 2) * strength);
+    sparkVel.set([v.x, v.y, v.z], i * 3);
+  }
+  sparkGeo.attributes.position.needsUpdate = true;
+  sparkLife = 0.55; arcLight.position.copy(pos); arcLight.intensity = 7 * strength;
+  const fl = $('#flash'); fl.style.transition = 'none'; fl.style.opacity = String(Math.min(0.6, 0.16 * strength));
+  requestAnimationFrame(() => { fl.style.transition = 'opacity .45s'; fl.style.opacity = '0'; });
+  crackle(0.2 + 0.2 * strength, 0.22 * strength);
+}
+
+/* ---------- audio ---------- */
+let actx = null, humNode = null;
+function ensureAudio() { if (actx) { if (actx.state === 'suspended') actx.resume(); return; } try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
+function tone(f, dur, type = 'sine', vol = 0.12, delay = 0) {
+  if (!actx || !S.sound) return;
+  const t0 = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = f; g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function crackle(dur = 0.35, vol = 0.3) {
+  if (!actx || !S.sound) return;
+  const len = Math.floor(actx.sampleRate * dur), buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (Math.random() < 0.3 ? 1 : 0.2) * (1 - i / len);
+  const src = actx.createBufferSource(), bp = actx.createBiquadFilter(), g = actx.createGain();
+  src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.7; g.gain.value = vol;
+  src.connect(bp).connect(g).connect(actx.destination); src.start();
+}
+function setHum(level) {
+  if (!actx) return;
+  if (!humNode) {
+    const g = actx.createGain(); g.gain.value = 0; g.connect(actx.destination);
+    [100, 200].forEach((f, i) => { const o = actx.createOscillator(); o.frequency.value = f; const og = actx.createGain(); og.gain.value = i ? 0.35 : 1; o.connect(og).connect(g); o.start(); });
+    humNode = g;
+  }
+  humNode.gain.setTargetAtTime(S.sound ? level : 0, actx.currentTime, 0.3);
+}
+const humLevel = () => 0.012 * PH.filter(p => S.closed[p]).length;
+const beepDetect = () => { for (let i = 0; i < 4; i++) tone(2200, 0.09, 'square', 0.07, i * 0.15); };
+const alarm = () => { tone(880, 0.12, 'sawtooth', 0.08); tone(660, 0.16, 'sawtooth', 0.08, 0.13); };
+const okChime = () => { tone(660, 0.12, 'sine', 0.1); tone(990, 0.2, 'sine', 0.1, 0.1); };
+
+/* ---------- UI ---------- */
+let toastTimer = 0;
+function toast(msg, kind = '') { const t = $('#toast'); t.textContent = msg; t.className = 'show ' + kind; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = kind; }, 3800); }
+function renderSteps() {
+  $('#steps').innerHTML = STEPS.map((s, i) => `<li class="${i < S.step ? 'done' : i === S.step ? 'cur' : ''}"><span class="n">${i < S.step ? '✓' : i}</span><span>${s.title}</span></li>`).join('');
+  const idx = Math.min(S.step, STEPS.length - 1), st = STEPS[idx];
+  let extra = '';
+  if (st.id === 'connect' || st.id === 'close') {
+    extra = `<div class="phgrid"><span class="h">เฟส</span><span class="h">${st.id === 'connect' ? 'Bail Clamp' : 'คัตเอาท์'}</span><span class="h">${st.id === 'connect' ? 'สายหม้อแปลง' : ''}</span>` +
+      PH.map(p => st.id === 'connect'
+        ? `<b>${p}</b><span class="st ${S.bail[p] ? 'y' : ''}">${S.bail[p] ? '✓ ติดตั้งแล้ว' : 'ยังไม่ติดตั้ง'}</span><span class="st ${S.conn[p] ? 'y' : ''}">${S.conn[p] ? '✓ เชื่อมแล้ว' : S.carrying === p ? 'กำลังยก' : 'ยังไม่เชื่อม'}</span>`
+        : `<b>${p}</b><span class="st ${S.closed[p] ? 'y' : ''}">${S.closed[p] ? '✓ สับแล้ว' : 'เปิดอยู่'}</span><span></span>`).join('') + '</div>';
+  }
+  $('#instr').innerHTML = `<p class="eyebrow">ขั้นที่ ${idx}</p><h3>${st.title}</h3><p>${st.text}</p>${extra}` +
+    (st.tool ? `<div class="need">เครื่องมือที่ใช้: <b>${TOOLS[st.tool].name}</b></div>` : '');
+  $('#prep').hidden = S.step !== 0;
+  document.querySelectorAll('.tool').forEach(b => { b.disabled = S.step === 0 || S.done || S.failed; b.classList.toggle('on', b.dataset.tool === (S.tool || 'none')); });
+}
+$('#chkList').innerHTML = CHECKS.map((c, i) => `<label class="chk"><input type="checkbox" id="chk${i}"><span>${c}</span></label>`).join('');
+$('#chkList').addEventListener('change', () => { $('#startBtn').disabled = !CHECKS.every((_, i) => $('#chk' + i).checked); });
+$('#startBtn').addEventListener('click', () => {
+  ensureAudio(); S.step = 1; S.startT = performance.now(); okChime(); renderSteps();
+  toast('เริ่มงานได้ คลิกที่ฉากเพื่อใช้เมาส์หันมอง แล้วกด 1 เพื่อหยิบไม้ตรวจแรงดัน', 'ok');
+});
+$('#tools').innerHTML = Object.entries(TOOLS).map(([k, t]) => `<button class="tool" data-tool="${k}"><span class="k">${t.key}</span><span class="t">${t.name}</span><span class="s">${t.sub} · ${t.L} m</span></button>`).join('') +
+  `<button class="tool free" data-tool="none"><span class="t">วางไม้ (มือว่าง)</span><span class="k">0</span></button>`;
+$('#tools').addEventListener('click', e => { const b = e.target.closest('.tool'); if (b && !b.disabled) selectTool(b.dataset.tool === 'none' ? null : b.dataset.tool); });
+function selectTool(k) {
+  if (S.step === 0 || S.done || S.failed) return;
+  if (S.carrying && k !== 'shotgun') { toast('ยังถือสายหม้อแปลงอยู่ กด X เพื่อวางสายคืนก่อนเปลี่ยนไม้', 'bad'); return; }
+  if (k === 'bail' && PH.every(p => S.bail[p])) toast('ติดตั้ง Bail Clamp ครบทั้ง 3 เฟสแล้ว');
+  S.tool = k; S.progress = 0; S.progKey = ''; renderSteps();
+}
+function dropJumper() { if (!S.carrying) return; const p = S.carrying; S.carrying = null; toast(`วางสายหม้อแปลงเฟส ${p} คืนที่เดิม`); renderSteps(); }
+function togglePanel(show) { const sh = show ?? $('#panel').hidden; $('#panel').hidden = !sh; $('#panelTab').hidden = sh; }
+$('#panelHide').addEventListener('click', () => togglePanel(false));
+$('#panelTab').addEventListener('click', () => togglePanel(true));
+$('#soundBtn').addEventListener('click', e => { S.sound = !S.sound; e.currentTarget.textContent = 'เสียง: ' + (S.sound ? 'เปิด' : 'ปิด'); e.currentTarget.setAttribute('aria-pressed', String(S.sound)); if (S.sound) ensureAudio(); setHum(humLevel()); });
+$('#viewBtn').addEventListener('click', toggleView);
+
+/* ---------- view ---------- */
+const eye = V(0, 0, 0);
+function lookAtPoint(t) { const d = t.clone().sub(bucketPos.clone().add(V(0, 1.62, 0))); S.yaw = Math.atan2(-d.x, -d.z); S.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); }
+function toggleView() {
+  if (S.view === 'fp') {
+    S.view = 'tp'; if (document.pointerLockElement) document.exitPointerLock();
+    controls.enabled = true; controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    camera.position.copy(bucketPos).add(V(4.5, 3.2, 5.5)); controls.target.set(0.6, 8.0, 1.0); controls.update();
+  } else { S.view = 'fp'; controls.enabled = false; }
+  $('#viewBtn').textContent = 'มุมมอง: ' + (S.view === 'fp' ? 'บุคคลที่ 1' : 'ภายนอก');
+  $('#viewBtn').classList.toggle('on', S.view === 'fp');
+}
+
+/* ---------- input ---------- */
+const SENS = 0.0022;
+function look(dx, dy) { S.yaw -= dx * SENS; S.pitch = Math.max(-1.35, Math.min(1.35, S.pitch - dy * SENS)); }
+function requestLock() {
+  try {
+    const r = canvas.requestPointerLock();
+    if (r && r.catch) r.catch(() => { S.noLock = true; });
+    setTimeout(() => { if (!S.locked) S.noLock = true; }, 600);
+  } catch (e) { S.noLock = true; }
+}
+document.addEventListener('pointerlockchange', () => { S.locked = document.pointerLockElement === canvas; if (!S.locked) S.pointerDown = false; });
+document.addEventListener('pointerlockerror', () => { S.noLock = true; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => {
+  ensureAudio();
+  if (S.view !== 'fp') return;
+  if (e.button === 2) { S.dragLook = true; return; }
+  if (e.button !== 0) return;
+  if (!S.locked && !S.noLock && canvas.requestPointerLock && S.step > 0) { requestLock(); return; }
+  if (S.step === 0) { S.dragLook = true; return; }
+  S.pointerDown = true; handleClick();
+});
+window.addEventListener('mouseup', e => { if (e.button === 0) S.pointerDown = false; S.dragLook = false; });
+document.addEventListener('mousemove', e => {
+  if (S.view !== 'fp') return;
+  if (S.locked || S.dragLook) look(e.movementX || 0, e.movementY || 0);
+});
+let touchPrev = null;
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && S.view === 'fp') { ensureAudio(); touchPrev = [e.clientX, e.clientY]; } });
+canvas.addEventListener('pointermove', e => { if (e.pointerType === 'touch' && touchPrev && S.view === 'fp') { look((e.clientX - touchPrev[0]) * 1.4, (e.clientY - touchPrev[1]) * 1.4); touchPrev = [e.clientX, e.clientY]; } });
+window.addEventListener('pointerup', e => { if (e.pointerType === 'touch') touchPrev = null; });
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase(); keys[k] = true;
+  if (e.code === 'Space') { S.keyHold = true; e.preventDefault(); ensureAudio(); }
+  const map = { '1': 'detector', '2': 'bail', '3': 'shotgun', '4': 'switch' };
+  if (map[k]) selectTool(map[k]);
+  if (k === '0') selectTool(null);
+  if (k === 'x') dropJumper();
+  if (k === 'v') toggleView();
+  if (k === 'h') togglePanel();
+  if (k.startsWith('arrow')) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; if (e.code === 'Space') S.keyHold = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; S.keyHold = S.pointerDown = S.btnHold = S.dragLook = false; });
+const padState = {};
+document.querySelectorAll('[data-mv]').forEach(b => {
+  const on = e => { e.preventDefault(); padState[b.dataset.mv] = true; }, off = () => { padState[b.dataset.mv] = false; };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+});
+const hb = $('#holdBtn');
+hb.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); S.btnHold = true; handleClick(); });
+['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => hb.addEventListener(ev, () => { S.btnHold = false; }));
+
+/* ---------- stick kinematics ---------- */
+const tip = V(0, 0, 0), anchor = V(0, 0, 0), rearHand = V(0, 0, 0), frontHand = V(0, 0, 0), sdir = V(0, 0, -1);
+const fwd = V(0, 0, -1), right = V(1, 0, 0);
+let reachState = 'none', aimOn = false;
+// target = pull ring of an open fuse; it stays fixed while the stick pushes the fuse up
+function ringPos(p) { const a = OPEN_ANG; return HINGE[p].clone().add(V(0, Math.cos(a) * 0.46 - Math.sin(a) * 0.035, Math.sin(a) * 0.46 + Math.cos(a) * 0.035)); }
+function lineDist(p, q) { return Math.hypot(q.x - PX[p], q.y - lineY(p, q.z)); }
+function candidates() {
+  const t = S.tool, c = [];
+  if (t === 'detector') PH.forEach(p => c.push(V(PX[p], lineY(p, Z_BAIL), Z_BAIL)));
+  if (t === 'bail') PH.forEach(p => { if (!S.bail[p]) c.push(BAIL_TOP[p]); });
+  if (t === 'shotgun') { if (S.carrying) PH.forEach(p => c.push(S.bail[p] ? BAIL_BOT[p] : BAIL_TOP[p])); else PH.forEach(p => { if (!S.conn[p]) c.push(PARK[p]); }); }
+  if (t === 'switch') PH.forEach(p => { if (!S.closed[p]) c.push(ringPos(p)); });
+  return c;
+}
+function updateAim() {
+  eye.copy(bucketPos).add(V(0, 1.62, 0));
+  fwd.set(-Math.sin(S.yaw) * Math.cos(S.pitch), Math.sin(S.pitch), -Math.cos(S.yaw) * Math.cos(S.pitch));
+  right.crossVectors(fwd, UP).normalize();
+  anchor.copy(eye).addScaledVector(right, 0.16).add(V(0, -0.36, 0));
+  if (!S.tool) { reachState = 'none'; aimOn = false; return; }
+  const L = TOOLS[S.tool].L;
+  // depth: snap to the candidate nearest the crosshair, else keep the last depth
+  let best = null, bestA = 0.32;
+  for (const c of candidates()) { const v = c.clone().sub(eye), d = v.dot(fwd); if (d < 0.4) continue; const a = Math.acos(Math.min(1, d / v.length())); if (a < bestA) { bestA = a; best = d; } }
+  if (best !== null) S.lastR = best;
+  const r = Math.max(1.0, Math.min(4.2, S.lastR));
+  const t0 = eye.clone().addScaledVector(fwd, r);
+  sdir.copy(t0).sub(anchor); const d = sdir.length(); sdir.normalize();
+  let g = d - L; reachState = 'ok';
+  // g = where the stick butt sits along the line from the shoulder; hands stay within arm's length
+  if (g > 0.25) { g = 0.25; reachState = 'far'; } else if (g < -1.8) { g = -1.8; reachState = 'near'; }
+  tip.copy(anchor).addScaledVector(sdir, L + g);
+  const rh = Math.max(0.1, Math.min(0.25, g + 0.2));
+  rearHand.copy(anchor).addScaledVector(sdir, rh);
+  frontHand.copy(anchor).addScaledVector(sdir, rh + 0.45);
+}
+
+/* ---------- live parts ---------- */
+function distToPolyline(q, pts) {
+  let d = Infinity; const ab = V(0, 0, 0), ap = V(0, 0, 0);
+  for (let i = 0; i < pts.length - 1; i++) {
+    ab.copy(pts[i + 1]).sub(pts[i]); ap.copy(q).sub(pts[i]);
+    const t = Math.max(0, Math.min(1, ap.dot(ab) / Math.max(ab.lengthSq(), 1e-9)));
+    d = Math.min(d, ap.sub(ab.multiplyScalar(t)).length());
+  }
+  return d;
+}
+function liveDist(q) {
+  let d = Infinity;
+  PH.forEach(p => {
+    d = Math.min(d, lineDist(p, q));
+    if (S.conn[p]) d = Math.min(d, distToPolyline(q, jumper[p].pts), q.distanceTo(CUT_TOP[p]));
+    if (S.closed[p]) d = Math.min(d, distToPolyline(q, [CUT_TOP[p], ...LEAD[p]]));
+  });
+  return d; // the transformer tank is grounded; only its HV bushings and leads (above) are live
+}
+
+/* ---------- step logic ---------- */
+const sid = () => STEPS[S.step] && STEPS[S.step].id;
+function mistake(key, msg) { if (!S.wrongSeen[key]) { S.wrongSeen[key] = true; S.mistakes++; alarm(); } toast(msg, 'bad'); }
+function handleClick() {
+  if (S.done || S.failed || S.step === 0) return;
+  if (S.view !== 'fp') { toast('สลับเป็นมุมมองบุคคลที่ 1 (V) เพื่อทำงาน'); return; }
+  if (!S.tool) { toast('หยิบไม้ก่อน กด 1–4 หรือเลือกจากแผงด้านซ้าย'); return; }
+  if (reachState === 'far') { toast('เอื้อมไม่ถึง เลื่อนกระเช้าเข้าใกล้ (W) หรือยกขึ้น (E)'); return; }
+  if (S.tool === 'shotgun' && !S.carrying) {
+    const p = PH.find(q => !S.conn[q] && tip.distanceTo(PARK[q]) < 0.2);
+    if (!p) return;
+    if (sid() === 'detect') { mistake('order:hook', 'ต้องตรวจสอบแรงดันสายเมนก่อนเริ่มเชื่อมสาย'); return; }
+    S.carrying = p; S.pointerDown = false; tone(520, 0.08, 'triangle', 0.1);
+    toast(`เกี่ยว Hot Line Clamp ของสายหม้อแปลงเฟส ${p} แล้ว ยกไปที่ Bail Clamp เฟส ${p}`); renderSteps();
+  }
+}
+// what the held stick is doing right now: {kind, p} | {err, key} | null
+function holdTarget() {
+  const id = sid(), t = S.tool;
+  if (!t || reachState === 'far') return null;
+  if (t === 'detector') { const p = PH.find(q => lineDist(q, tip) < 0.13); return p && id === 'detect' ? { kind: 'detect', p } : null; }
+  if (id === 'detect') {
+    if (t === 'bail' && PH.some(q => tip.distanceTo(BAIL_TOP[q]) < 0.15)) return { err: 'ต้องตรวจสอบแรงดันด้วยไม้ตรวจแรงดันก่อนติดตั้งอุปกรณ์', key: 'order:bail' };
+    if (t === 'switch' && PH.some(q => tip.distanceTo(ringPos(q)) < 0.12)) return { err: 'ยังไม่ถึงขั้นสับคัตเอาท์', key: 'order:sw0' };
+    return null;
+  }
+  if (id === 'connect') {
+    if (t === 'bail') { const p = PH.find(q => !S.bail[q] && tip.distanceTo(BAIL_TOP[q]) < 0.15); return p ? { kind: 'bail', p } : null; }
+    if (t === 'shotgun' && S.carrying) {
+      const c = S.carrying;
+      for (const q of PH) {
+        const nearBail = S.bail[q] && tip.distanceTo(BAIL_BOT[q]) < 0.15;
+        const nearLine = !S.bail[q] && lineDist(q, tip) < 0.22 && Math.abs(tip.z - Z_BAIL) < 1.5;
+        if (nearLine) return { err: `เฟส ${q} ยังไม่มี Bail Clamp ห้ามแคลมป์ Hot Line Clamp ลงสายเมนโดยตรง ต้องติดตั้ง Bail Clamp ก่อน`, key: 'nobail:' + q };
+        if (nearBail && q !== c) return { err: `สายหม้อแปลงเฟส ${c} ต้องต่อเข้า Bail Clamp เฟส ${c} ไม่ใช่เฟส ${q}`, key: 'wrongph:' + c + q };
+        if (nearBail) return { kind: 'connect', p: c };
+      }
+      return null;
+    }
+    if (t === 'switch' && PH.some(q => !S.closed[q] && tip.distanceTo(ringPos(q)) < 0.12)) return { err: 'ยังเชื่อมสายไม่ครบทุกเฟส ห้ามสับคัตเอาท์ก่อน', key: 'order:sw' };
+    return null;
+  }
+  if (id === 'close' && t === 'switch') { const p = PH.find(q => !S.closed[q] && tip.distanceTo(ringPos(q)) < 0.12); return p ? { kind: 'close', p } : null; }
+  return null;
+}
+const DUR = { detect: 1.0, bail: 1.7, connect: 2.0, close: 0.9 };
+const LBL = { detect: 'กำลังตรวจแรงดัน', bail: 'กำลังขัน Bail Clamp', connect: 'กำลังขัน Hot Line Clamp', close: 'กำลังดันฟิวส์ขึ้น' };
+let curHold = null;
+function updateHoldWork(dt) {
+  const holding = S.pointerDown || S.keyHold || S.btnHold;
+  const h = holdTarget(); curHold = h && h.kind ? h : null;
+  if (h && h.err) { if (holding) { mistake(h.key, h.err); S.pointerDown = S.keyHold = S.btnHold = false; } return; }
+  const key = h ? h.kind + h.p : '';
+  if (key !== S.progKey) { S.progress = 0; S.progKey = key; S.arced = false; }
+  if (!h) return;
+  if (!holding) { S.progress = Math.max(0, S.progress - dt * 0.6); return; }
+  S.progress = Math.min(1, S.progress + dt / DUR[h.kind]);
+  if ((h.kind === 'bail' || h.kind === 'connect') && Math.random() < dt * 6) tone(180 + S.progress * 120, 0.05, 'square', 0.03);
+  if (h.kind === 'connect' && !S.arced && S.progress > 0.7) { S.arced = true; arcFlash(BAIL_BOT[h.p], 0.45); }
+  if (h.kind === 'detect' && S.progress > 0.2) sticks.detector.userData.led.material.emissive.setHex(Math.sin(performance.now() / 30) > 0 ? 0xff2020 : 0x300000);
+  if (S.progress < 1) return;
+  const p = h.p; S.progress = 0; S.progKey = '';
+  if (h.kind === 'detect') {
+    beepDetect(); sticks.detector.userData.led.material.emissive.setHex(0xff2020); setTimeout(() => sticks.detector.userData.led.material.emissive.setHex(0), 1500);
+    S.tool = null; nextStep(`ตรวจพบแรงดันบนสายเฟส ${p} ยืนยันว่าสายมีไฟ ต่อไปติดตั้ง Bail Clamp (กด 2)`);
+  } else if (h.kind === 'bail') {
+    S.bail[p] = true; bailMeshes[p] = makeBail(); bailMeshes[p].position.copy(BAIL_TOP[p]); scene.add(bailMeshes[p]);
+    okChime(); toast(`ติดตั้ง Bail Clamp เฟส ${p} แล้ว`, 'ok'); S.pointerDown = S.keyHold = S.btnHold = false; renderSteps();
+  } else if (h.kind === 'connect') {
+    S.conn[p] = true; S.carrying = null; okChime(); S.pointerDown = S.keyHold = S.btnHold = false;
+    if (PH.every(q => S.conn[q])) { S.tool = null; nextStep('เชื่อมสายหม้อแปลงครบ 3 เฟสแล้ว ต่อไปสับคัตเอาท์ (กด 4)'); }
+    else { toast(`เชื่อมสายหม้อแปลงเฟส ${p} แล้ว สายเส้นนี้มีไฟแล้ว ระวังระยะ`, 'ok'); renderSteps(); }
+  } else if (h.kind === 'close') {
+    S.closed[p] = true; S.fuseAng[p] = CLOSED_ANG; arcFlash(CUT_TOP[p].clone().add(V(0, -0.05, 0.03)), 0.8); setHum(humLevel());
+    S.pointerDown = S.keyHold = S.btnHold = false;
+    if (PH.every(q => S.closed[q])) { S.tool = null; nextStep('สับคัตเอาท์ครบแล้ว หม้อแปลงรับไฟ ถอยกระเช้าออก'); }
+    else { toast(`สับคัตเอาท์เฟส ${p} แล้ว`, 'ok'); renderSteps(); }
+  }
+}
+function nextStep(msg) { S.step++; S.progress = 0; S.progKey = ''; okChime(); toast(msg, 'ok'); renderSteps(); }
+function carryCheck() {
+  if (!S.carrying) return;
+  for (const q of PH) {
+    if (lineDist(q, tip) < 0.07 && Math.abs(tip.z) < 6) return fault(`Hot Line Clamp แตะสายเมนเฟส ${q} โดยตรง เกิดอาร์ก!`, tip.clone());
+    if (S.conn[q] && distToPolyline(tip, jumper[q].pts) < 0.06) return fault(`สายที่ถือแตะสายหม้อแปลงเฟส ${q} ที่มีไฟแล้ว เกิดอาร์ก!`, tip.clone());
+  }
+}
+function fault(msg, pos) {
+  S.faults++; S.mistakes++; arcFlash(pos, 2.2); alarm();
+  const p = S.carrying; S.carrying = null; S.pointerDown = S.keyHold = S.btnHold = false;
+  toast(`${msg} สายเฟส ${p} หลุดกลับที่เดิม ต้องเริ่มยกใหม่`, 'bad'); renderSteps();
+}
+
+/* ---------- finish / fail ---------- */
+const fmtTime = ms => { const s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function showModal(html) { if (document.pointerLockElement) document.exitPointerLock(); $('#mbox').innerHTML = html; $('#modal').hidden = false; $('#againBtn').addEventListener('click', () => location.reload()); $('#againBtn').focus(); }
+function finish() {
+  S.done = true; S.endT = performance.now(); S.step = STEPS.length; renderSteps(); okChime();
+  const score = Math.max(0, 100 - S.violations * 15 - S.mistakes * 8 - S.faults * 20);
+  const grade = score >= 90 ? 'ดีเยี่ยม' : score >= 70 ? 'ผ่าน' : 'ควรฝึกเพิ่ม';
+  showModal(`<p class="eyebrow">งานเสร็จสมบูรณ์</p><h2>หม้อแปลงรับไฟแล้ว · ${grade}</h2>
+    <p>สายหม้อแปลงทั้ง 3 เฟสต่อเข้าสายเมนผ่าน Bail Clamp และ Hot Line Clamp และสับคัตเอาท์ครบแล้ว อย่าลืมแจ้งศูนย์ควบคุมให้ยกเลิก Block Reclose แล้วจึงจ่ายโหลดด้านแรงต่ำ</p>
+    <div class="grid4"><div><span>คะแนน</span><b>${score}</b></div><div><span>เวลา</span><b>${fmtTime(S.endT - S.startT)}</b></div>
+    <div><span>ฝ่าระยะปลอดภัย</span><b>${S.violations}</b></div><div><span>ผิดพลาด / อาร์ก</span><b>${S.mistakes} / ${S.faults}</b></div></div>
+    <button class="btn on" id="againBtn">ฝึกอีกครั้ง</button>`);
+}
+function fail(reason) {
+  if (S.failed) return; S.failed = true; arcFlash(eye.clone().addScaledVector(fwd, 0.4), 3); alarm(); renderSteps();
+  showModal(`<p class="eyebrow" style="color:var(--danger)">อุบัติเหตุ</p><h2>ร่างกายเข้าใกล้ส่วนมีไฟเกินไป</h2>
+    <p>${reason} ในงานจริงอาจเกิดไฟฟ้าดูดหรือไฟฟ้าวาบจนถึงแก่ชีวิต ให้วางตำแหน่งกระเช้าให้ห่างจากส่วนมีไฟทุกจุดเกินระยะปลอดภัย แล้วใช้ความยาวไม้ฉนวนทำงานแทน</p>
+    <button class="btn on" id="againBtn">เริ่มใหม่</button>`);
+}
+
+/* ---------- per-frame ---------- */
+const clock = new THREE.Clock();
+const mvF = V(0, 0, 0), mvR = V(0, 0, 0), mv = V(0, 0, 0);
+function moveBucket(dt) {
+  if (S.done || S.failed) return;
+  if (S.view === 'fp') {
+    const k = 1.6 * dt;
+    if (keys.arrowleft) S.yaw += k; if (keys.arrowright) S.yaw -= k;
+    if (keys.arrowup) S.pitch = Math.min(1.35, S.pitch + k); if (keys.arrowdown) S.pitch = Math.max(-1.35, S.pitch - k);
+  }
+  const yaw = S.view === 'fp' ? S.yaw : Math.atan2(-(controls.target.x - camera.position.x), -(controls.target.z - camera.position.z));
+  mvF.set(-Math.sin(yaw), 0, -Math.cos(yaw)); mvR.set(Math.cos(yaw), 0, -Math.sin(yaw));
+  mv.set(0, 0, 0);
+  if (keys.w || padState.fwd) mv.add(mvF); if (keys.s || padState.back) mv.sub(mvF);
+  if (keys.d || padState.right) mv.add(mvR); if (keys.a || padState.left) mv.sub(mvR);
+  if (keys.e || padState.up) mv.y += 1; if (keys.q || padState.down) mv.y -= 1;
+  if (mv.lengthSq() === 0) return;
+  mv.normalize().multiplyScalar(0.8 * dt);
+  const before = bucketPos.clone();
+  bucketPos.add(mv);
+  bucketPos.x = Math.max(-4, Math.min(5, bucketPos.x)); bucketPos.z = Math.max(-2, Math.min(5, bucketPos.z)); bucketPos.y = Math.max(4.5, Math.min(10.2, bucketPos.y));
+  POLES_Z.forEach(pz => { const dz = bucketPos.z - pz, r = Math.hypot(bucketPos.x, dz); if (r < 0.75) { bucketPos.x *= 0.75 / r; bucketPos.z = pz + dz * 0.75 / r; } });
+  // keep the bucket out of the transformer platform
+  if (Math.abs(bucketPos.x) < 1.2 && Math.abs(bucketPos.z) < 1.5 && bucketPos.y < 6.5) bucketPos.copy(before);
+  if (S.view === 'tp') camera.position.add(bucketPos.clone().sub(before));
+}
+function updateRig() {
+  bucket.position.copy(bucketPos); bucket.rotation.y = S.yaw;
+  man.position.copy(bucketPos); man.rotation.y = S.yaw; man.visible = S.view === 'tp';
+  const shL = eye.clone().addScaledVector(right, -0.2).add(V(0, -0.3, 0)), shR = eye.clone().addScaledVector(right, 0.2).add(V(0, -0.3, 0));
+  let hL, hR;
+  if (S.tool) { hL = frontHand.clone(); hR = rearHand.clone(); }
+  else { const f = V(fwd.x, 0, fwd.z).normalize(); hL = shL.clone().add(V(0, -0.38, 0)).addScaledVector(f, 0.25); hR = shR.clone().add(V(0, -0.38, 0)).addScaledVector(f, 0.25); }
+  placeBetween(armL, shL, hL); placeBetween(armR, shR, hR); gloveL.position.copy(hL); gloveR.position.copy(hR);
+  const attach = bucketPos.clone().addScaledVector(V(Math.cos(S.yaw), 0, -Math.sin(S.yaw)), 0.55).add(V(0, 0.25, 0));
+  const elbow = TURRET.clone().lerp(attach, 0.45); elbow.y = Math.min(attach.y - 0.6, Math.max(TURRET.y, attach.y) - 1.2); elbow.x += 1.2;
+  placeBetween(boomLow, TURRET, elbow); placeBetween(boomUp, elbow, attach);
+  placeBetween(boomBand, elbow.clone().lerp(attach, 0.5), elbow.clone().lerp(attach, 0.53));
+  Object.entries(sticks).forEach(([k, s]) => {
+    s.visible = S.tool === k;
+    if (s.visible) { s.position.copy(tip).addScaledVector(sdir, -TOOLS[k].L); s.quaternion.setFromUnitVectors(UP, sdir); }
+  });
+  if (sticks.bail.userData.payload) sticks.bail.userData.payload.visible = PH.some(p => !S.bail[p]);
+  ['bail', 'shotgun'].forEach(k => { const lv = sticks[k].userData.lever; if (lv) lv.rotation.z = S.tool === k && curHold && (curHold.kind === 'bail' || curHold.kind === 'connect') ? -0.5 * S.progress : 0; });
+  tipDot.visible = !!S.tool; tipDot.position.copy(tip);
+  PH.forEach(p => {
+    if (!S.closed[p]) S.fuseAng[p] = OPEN_ANG + (CLOSED_ANG - OPEN_ANG) * (S.progKey === 'close' + p ? S.progress : 0);
+    fuseGroups[p].rotation.x = S.fuseAng[p]; rebuildJumper(p);
+  });
+}
+function updateMarkers(t) {
+  const id = sid(); let pts = [];
+  if (!S.done && !S.failed) {
+    if (id === 'detect') pts = [V(PX.A, lineY('A', Z_BAIL), Z_BAIL)];
+    else if (id === 'connect') {
+      if (S.carrying) pts = [S.bail[S.carrying] ? BAIL_BOT[S.carrying] : BAIL_TOP[S.carrying]];
+      else if (S.tool === 'shotgun') pts = PH.filter(p => S.bail[p] && !S.conn[p]).map(p => PARK[p]);
+      else pts = PH.filter(p => !S.bail[p]).map(p => BAIL_TOP[p]);
+      if (!pts.length) pts = PH.filter(p => !S.conn[p]).map(p => PARK[p]);
+    } else if (id === 'close') pts = PH.filter(p => !S.closed[p]).map(p => ringPos(p));
+  }
+  markers.forEach((m, i) => {
+    m.visible = i < pts.length; if (!m.visible) return;
+    m.position.copy(pts[i]); m.lookAt(camera.position); m.scale.setScalar(1 + 0.18 * Math.sin(t * 5 + i));
+    const near = curHold && m.position.distanceTo(tip) < 0.2; m.material.color.setHex(near ? 0x43d39a : 0xf6c445);
+  });
+}
+function updateSafety() {
+  const pts = [eye, eye.clone().add(V(0, -0.45, 0)), gloveL.position, gloveR.position];
+  let d = Infinity; pts.forEach(q => { d = Math.min(d, liveDist(q)); });
+  const el = $('#dist'); el.textContent = d.toFixed(2) + ' m';
+  const fill = $('#distFill'); fill.style.width = Math.max(2, Math.min(100, (d / 2) * 100)) + '%';
+  const col = d < MAD ? 'var(--danger)' : d < MAD + 0.3 ? 'var(--warn)' : 'var(--ok)';
+  fill.style.background = col; el.style.color = col;
+  if (S.step < 1 || S.done || S.failed) { $('#vignette').classList.remove('on'); return; }
+  if (d < FATAL) { fail(`ระยะระหว่างร่างกายกับส่วนมีไฟเหลือเพียง ${d.toFixed(2)} m`); return; }
+  if (d < MAD) {
+    if (!S.inViol) { S.inViol = true; S.violations++; alarm(); toast(`ล้ำเข้าระยะปลอดภัย (${d.toFixed(2)} m < ${MAD} m) ถอยกระเช้าออกทันที`, 'bad'); }
+    $('#vignette').classList.add('on');
+  } else { if (d > MAD + 0.05) S.inViol = false; $('#vignette').classList.remove('on'); }
+  if (sid() === 'clear' && bucketPos.y < 6.6 && !S.inViol) finish();
+}
+function updateHud() {
+  const rc = $('#reach'), xh = $('#xh');
+  if (!S.tool) { rc.textContent = 'ไม่ได้ถือ'; rc.className = 'chip'; }
+  else if (reachState === 'far') { rc.textContent = 'เอื้อมไม่ถึง'; rc.className = 'chip bad'; }
+  else if (reachState === 'near') { rc.textContent = 'ชิดเกินไป'; rc.className = 'chip warn'; }
+  else { rc.textContent = 'พอดี'; rc.className = 'chip ok'; }
+  xh.className = reachState === 'far' ? 'far' : curHold || (S.tool === 'shotgun' && !S.carrying && PH.some(p => !S.conn[p] && tip.distanceTo(PARK[p]) < 0.2)) ? 'on' : '';
+  xh.hidden = S.view !== 'fp';
+  $('#lockHint').hidden = !(S.view === 'fp' && !S.locked && !S.noLock && S.step > 0 && !S.done && !S.failed);
+  $('#carryRow').hidden = !S.carrying; if (S.carrying) $('#carryChip').textContent = 'เฟส ' + S.carrying + ' · X ปล่อย';
+  const pg = $('#prog'), show = S.progress > 0 && curHold && !S.done;
+  pg.style.display = show ? 'flex' : 'none';
+  if (show) { $('#progFill').style.width = (S.progress * 100).toFixed(0) + '%'; $('#progPct').textContent = (S.progress * 100).toFixed(0) + '%'; $('#progLabel').textContent = LBL[curHold.kind]; }
+  const now = S.endT || performance.now(); $('#tTime').textContent = S.startT ? fmtTime(now - S.startT) : '00:00';
+  $('#tViol').textContent = S.violations; $('#tViol').classList.toggle('bad', S.violations > 0); $('#tMis').textContent = S.mistakes;
+}
+function updateSparks(dt) {
+  if (sparkLife <= 0) { sparkMat.opacity = 0; arcLight.intensity = 0; return; }
+  sparkLife -= dt; const p = sparkGeo.attributes.position.array;
+  for (let i = 0; i < N; i++) { sparkVel[i * 3 + 1] -= 4 * dt; for (let j = 0; j < 3; j++) p[i * 3 + j] += sparkVel[i * 3 + j] * dt; }
+  sparkGeo.attributes.position.needsUpdate = true; sparkMat.opacity = Math.max(0, sparkLife / 0.55); arcLight.intensity *= 0.82;
+}
+function resize() { const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 1 ? 80 : 70; camera.updateProjectionMatrix(); }
+window.addEventListener('resize', resize);
+
+function frame() {
+  const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
+  moveBucket(dt); updateAim(); carryCheck(); updateRig();
+  if (!S.done && !S.failed && S.step > 0 && S.view === 'fp') updateHoldWork(dt); else curHold = null;
+  updateMarkers(t); updateSafety(); updateHud(); updateSparks(dt);
+  if (S.view === 'fp') { camera.position.copy(eye); camera.rotation.set(S.pitch, S.yaw, 0, 'YXZ'); }
+  else controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+lookAtPoint(V(0.3, 9.4, 1.6));
+resize(); renderSteps(); updateAim(); updateRig(); frame();
+})();
+</script>
